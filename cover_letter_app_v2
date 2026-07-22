@@ -1,0 +1,126 @@
+import streamlit as st
+from groq import Groq
+
+st.title("📝 AI Cover Letter Customizer v2")
+st.write("Paste a job description and your background. The AI generates a draft, reviews it, and delivers an improved version.")
+
+#--- Sidebar----
+st.sidebar.header("Settings")
+api_key = st.sidebar.text_input("Enter your Groq API key", type="password")
+st.sidebar.caption("Get a free key at console.groq.com")
+
+# ----- Main Input -----
+job_description = st.text_area("Paste the job description", height=200)
+your_background =  st.text_area("Paste your CV or job background", height=200)
+
+# ---Generate Button ----
+if st.button("Generate Cover Letter"):
+    # Validation
+    if not api_key:
+        st.error("Enter your Groq API key in the sidebar.")
+    elif not job_description.strip():
+        st.error("Paste the job description.")
+    elif not your_background.strip():
+        st.error("Paste your background or CV.")
+    else:
+        client = Groq(api_key=api_key)
+
+        #--- STEP 1: Generate first draft ---
+        with st.spinner("Writing first draft..."):
+            draft_prompt = f"""
+You are a professional cover letter writer.
+
+Write a tailored cover letter based on the job description and the candidate's background.
+
+Rules:
+- Keep it under 300 words.
+- Use a professional but warm tone
+- Highlight the candidate's relevant skills for this specific role.
+- Do not invent experience that isn't listed.
+- Start with "Dear Hiring Manager," and end with "Sincerely,".
+
+Job Description:
+{job_description}
+
+Candidate Background:
+{your_background}
+
+Cover Letter:
+"""
+            draft_response = client.chat.completions.create(
+                model= "llama-3.1-8b-instant",
+                messages=[
+                    {"role": "system", "content": "You are a helpful career assistant."},
+                    {"role": "user", "content": draft_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1024
+            )
+
+            first_draft = draft_response.choices[0].message.content
+            
+
+        # --- STEP 2: Review and improve ---
+        with st.spinner("Reviewing and improving..."):
+            review_prompt = f"""
+You are a strict but constructive cover letter editor.
+
+Review the cover letter below against the job description. Then produce an improved version.
+
+Step 1: List 2-3 specific things that could be improved.
+Step 2: Write the improved cover letter.
+
+Format your response EXACTLY like this:
+FEEDBACK:
+- [Point 1]
+- [Point 2]
+- [Point 3]
+
+IMPROVED COVER LETTER:
+[The full improved cover letter]
+
+Job Description:
+{job_description}
+
+Original Cover Letter:
+{first_draft}
+"""
+            review_response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {"role": "system", "content": "You are a meticulous editor."},
+                    {"role": "user", "content": review_prompt}
+                ],
+                temperature=0.5,
+                max_tokens=1024
+            )
+            review_output = review_response.choices[0].message.content
+
+        # --- PARSE THE REVIEW OUTPUT ---
+        # Split the response into feedback and improved letter
+        if "IMPROVED COVER LETTER:" in review_output:
+            parts = review_output.split("IMPROVED COVER LETTER:", 1)
+            feedback = parts[0].replace("FEEDBACK:", "").strip()
+            final_letter = parts[1].strip()
+        else:
+            # Fallback if the AI didn't follow the format
+            feedback = "Reviewer feedback not properly formatted."
+            final_letter = review_output
+
+        # --- DISPLAY RESULTS ---
+        st.subheader("📝 First Draft")
+        with st.expander("Click to see first draft"):
+            st.write(first_draft)
+
+        st.subheader("🔍 Reviewer Feedback")
+        st.info(feedback)
+
+        st.subheader("✅ Final Improved Version")
+        st.success(final_letter)
+
+        st.download_button(
+            label="Download Final Version as .txt",
+            data=final_letter,
+            file_name="cover_letter_final.txt",
+            mime="text/plain"
+        )
