@@ -30,3 +30,14 @@ Applying to jobs is time-consuming. Tailoring each cover letter manually takes 3
 - **Two-step AI pipeline:** First AI drafts the cover letter. Second AI reviews and improves it.
 - **Structured output parsing:** Reviewer provides feedback and a rewritten version.
 - **Better UX:** Spinners show progress, first draft is in an expander, final version highlighted in green.
+
+
+## Evaluation Framework
+
+This project includes an automated evaluation suite (`evals.py`) that tests the cover letter pipeline against a set of defined criteria.
+
+- **3 test cases** covering different industries and experience levels.
+- **6 checks per case** including keyword presence, structural requirements, word count, and negative constraints.
+- **Current score: 100% (18/18)**
+
+Run with: `python evals.py`
